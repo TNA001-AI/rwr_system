@@ -50,9 +50,9 @@ class RetargeterNode(Node):
         include_wrist_and_tower = self.get_parameter("include_wrist_and_tower").value
 
         
-        # subscribe to ingress topics
-        self.ingress_mano_sub = self.create_subscription(
-            Float32MultiArray, "/ingress/mano", self.ingress_mano_cb, 10
+        # subscribe to glove topic
+        self.glove_sub = self.create_subscription(
+            Float32MultiArray, "/glove/r_full", self.glove_data_cb, 10
         )
         
         self.retargeter = Retargeter(
@@ -73,8 +73,46 @@ class RetargeterNode(Node):
         self.timer = self.create_timer(0.005, self.timer_publish_cb)
         self.keypoint_positions = None
     
-    def ingress_mano_cb(self, msg):
-        self.keypoint_positions = np.array(msg.data).reshape(-1, 3)
+    def glove_data_cb(self, msg):
+        # Convert glove data to MANO format
+        # Original glove data format (25 joints):
+        # [wrist(1),
+        #  thumb(metacarpal,proximal,distal,tip)(4),
+        #  index(metacarpal,proximal,intermediate,distal,tip)(5),
+        #  middle(metacarpal,proximal,intermediate,distal,tip)(5),
+        #  ring(metacarpal,proximal,intermediate,distal,tip)(5),
+        #  pinky(metacarpal,proximal,intermediate,distal,tip)(5)]
+        
+        # MANO format (22 joints):
+        # [forearm(1), wrist(1),
+        #  thumb(4), index(4), middle(4), ring(4), pinky(4)]
+        
+        glove_data = np.array(msg.data).reshape(-1, 3)
+        
+        # Initialize MANO format array (22 joints)
+        mano_data = np.zeros((22, 3))
+        
+        # Copy wrist data and duplicate it as forearm (since glove doesn't have forearm)
+        mano_data[0] = glove_data[0]  # forearm (duplicated from wrist)
+        mano_data[1] = glove_data[0]  # wrist
+        
+        # Convert thumb (using proximal, distal, tip)
+        mano_data[2:6] = glove_data[2:6]  # thumb (proximal, distal, tip)
+        
+        # Convert fingers (using proximal, intermediate, distal, tip)
+        # Index finger
+        mano_data[6:10] = glove_data[6:10]  # index (proximal, intermediate, distal, tip)
+        
+        # Middle finger
+        mano_data[10:14] = glove_data[11:15]  # middle (proximal, intermediate, distal, tip)
+        
+        # Ring finger
+        mano_data[14:18] = glove_data[16:20]  # ring (proximal, intermediate, distal, tip)
+        
+        # Pinky finger
+        mano_data[18:22] = glove_data[21:25]  # pinky (proximal, intermediate, distal, tip)
+        
+        self.keypoint_positions = mano_data
     
         
     def timer_publish_cb(self):

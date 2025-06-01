@@ -448,18 +448,12 @@ class Retargeter:
 
 
     def retarget(self, joints, debug_dict=None):
+        # joints is already in the correct format: [forearm, wrist, thumb(4), index(4), middle(4), ring(4), pinky(4)]
         normalized_joint_pos, mano_center_and_rot = (
             retarget_utils.normalize_points_to_hands_local(joints)
         )
         
-        # TODO: Make the thumb rotate even more!
-        normalized_joint_pos = (
-            retarget_utils.correct_rokoko_offset(normalized_joint_pos, 
-                                                 offset_angle=10, scaling_factor=2)
-        )
-        # rotate joints about z xis 15 degrees
-        normalized_joint_pos = self.adjust_mano_fingers(normalized_joint_pos)
-        # (model_joint_pos - model_center) @ model_rotation = normalized_joint_pos
+        # Skip MANO adjustments since we're using glove data directly
         debug_dict["mano_center_and_rot"] = mano_center_and_rot
         debug_dict["model_center_and_rot"] = (self.model_center, self.model_rotation)
         normalized_joint_pos = (
@@ -468,7 +462,8 @@ class Retargeter:
             
         self.target_angles, wrist_angle = self.retarget_finger_mano_joints(normalized_joint_pos)
 
-        normalized_joint_pos =retarget_utils.rotate_points_around_y(normalized_joint_pos, wrist_angle)
+        ## TODO: rotate?
+        normalized_joint_pos = retarget_utils.rotate_points_around_y(normalized_joint_pos, wrist_angle)
         if debug_dict is not None:
             debug_dict["normalized_joint_pos"] = normalized_joint_pos
 
