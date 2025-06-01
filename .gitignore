@@ -14,3 +14,6 @@ T_cam*
 recordings/*
 cal.yaml
 */temp/*
+launch/
+glove/
+telekinesis/
